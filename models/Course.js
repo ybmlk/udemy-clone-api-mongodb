@@ -17,6 +17,10 @@ const CourseSchema = new Schema({
   materialsNeeded: {
     type: String,
   },
+  date: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 module.exports = Course = mongoose.model('course', CourseSchema);
