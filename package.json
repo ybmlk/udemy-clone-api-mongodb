@@ -1,0 +1,15 @@
+{
+  "name": "udemy-clone-api-mongodb",
+  "version": "1.0.0",
+  "description": "MongoDB for udemy clone api",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Yonatan Melka",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1",
+    "mongoose": "^5.9.3"
+  }
+}
