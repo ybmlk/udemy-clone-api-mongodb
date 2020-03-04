@@ -1,13 +1,17 @@
 // Import Modules
 const express = require('express');
 const mongoose = require('mongoose');
+const morgan = require('morgan');
 
 // Import routes
 const courses = require('./routes/courses');
 const users = require('./routes/users');
 
+// Create Express app
 const app = express();
 
+// Setup morgan which gives us http request logging
+app.use(morgan('dev'));
 // Bodyparser middleware
 app.use(express.json());
 
@@ -22,7 +26,7 @@ mongoose
 
 // Use Routes
 app.use('/api/courses', courses);
-// app.use('/api/users', users);
+app.use('/api/users', users);
 
 // listen to port
 const port = process.env.PORT || 5000;

@@ -1,8 +1,55 @@
 const express = require('express');
+const auth = require('basic-auth');
+const bcryptjs = require('bcryptjs');
+const { check, validationResult } = require('express-validator');
 const router = express.Router();
 
-// Course Model
+// Import Models
 const Course = require('../models/Course');
+const User = require('../models/User');
+
+/* Handler function to wrap each function with try/cath block */
+const asycnHandler = cb => {
+  return async (req, res, next) => {
+    try {
+      await cb(req, res, next);
+    } catch (error) {
+      res.status(500).send(error);
+    }
+  };
+};
+
+/* Authentication middleware */
+const authenticateUser = async (req, res, next) => {
+  let message = null;
+  const credentials = auth(req);
+  // If email and password is provided...
+  if (credentials.name && credentials.pass) {
+    const user = await User.findOne({ emailAddress: credentials.name });
+    // If the email provided is found in the database...
+    if (user) {
+      const authenticated = bcryptjs.compareSync(credentials.pass, user.password);
+      // If the password provided is a match...
+      if (authenticated) {
+        console.log(`Authentication successful for email: ${user.emailAddress}`);
+        req.currentUser = user;
+      } else {
+        message = `Invalid email and/or password`;
+      }
+    } else {
+      message = `Invalid email and/or password`;
+    }
+  } else {
+    message = 'Please enter your email and/or password';
+  }
+
+  if (message) {
+    console.warn(message);
+    res.status(401).json({ message });
+  } else {
+    next();
+  }
+};
 
 /**
  * @listens   GET api/courses
@@ -21,8 +68,10 @@ router.get('/', (req, res) => {
  * @desc      Get An Individual Course
  * @access    Public
  */
-router.get('/', (req, res) => {
-  Course.findById(req.param.id).then(courses => res.json(courses));
+router.get('/:id', (req, res) => {
+  Course.findById(req.params.id)
+    .then(result => res.json(result))
+    .catch(() => res.status(404).json({ message: 'Course Not Found!' }));
 });
 
 /**
@@ -31,15 +80,7 @@ router.get('/', (req, res) => {
  * @access    Private
  */
 router.post('/', (req, res) => {
-  const { title, description, estimatedTime, materialsNeeded } = req.body;
-  const newCourse = new Course({
-    title,
-    description,
-    estimatedTime,
-    materialsNeeded,
-  });
-
-  newCourse.save().then(item => res.json(item));
+  Course.create(req.body).then(item => res.json(item));
 });
 
 /**
@@ -47,11 +88,10 @@ router.post('/', (req, res) => {
  * @desc      Update A Course
  * @access    Private
  */
-router.put('/', (req, res) => {
-  Course.find()
-    // Sorts by date in descending order
-    .sort({ date: -1 })
-    .then(courses => res.json(courses));
+router.put('/:id', (req, res) => {
+  Course.findByIdAndUpdate(req.params.id, req.body)
+    .then(course => res.json(course))
+    .catch(() => res.status(404).json({ message: 'Course Not Found!' }));
 });
 
 /**
@@ -59,11 +99,10 @@ router.put('/', (req, res) => {
  * @desc      Delete A Course
  * @access    Private
  */
-router.delete('/', (req, res) => {
-  Course.find()
-    // Sorts by date in descending order
-    .sort({ date: -1 })
-    .then(courses => res.json(courses));
+router.delete('/:id', (req, res) => {
+  Course.findByIdAndRemove(req.params.id)
+    .then(() => res.end())
+    .catch(() => res.status(404).json({ message: 'Course Not Found!' }));
 });
 
 module.exports = router;
