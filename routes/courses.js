@@ -24,7 +24,7 @@ const authenticateUser = async (req, res, next) => {
   let message = null;
   const credentials = auth(req);
   // If email and password is provided...
-  if (credentials.name && credentials.pass) {
+  if (credentials && credentials.name && credentials.pass) {
     const user = await User.findOne({ emailAddress: credentials.name });
     // If the email provided is found in the database...
     if (user) {

@@ -23,7 +23,7 @@ const authenticateUser = async (req, res, next) => {
   let message = null;
   const credentials = auth(req);
   // If email and password is provided...
-  if (credentials.name && credentials.pass) {
+  if (credentials && credentials.name && credentials.pass) {
     const user = await User.findOne({ emailAddress: credentials.name });
     // If the email provided is found in the database...
     if (user) {
@@ -105,17 +105,19 @@ router.post(
       res.status(400).json({ errors: errorMessages });
     } else {
       // Make sure the input email doesn't match an existing email address
-      const existingUser = await User.find({ emailAddress: req.body.emailAddress });
+      const existingUser = await User.find({ emailAddress: req.body.emailAddress.toLowerCase() });
 
       // If the email provided is new...
       if (existingUser.length < 1) {
         const user = await req.body;
         user.password = bcryptjs.hashSync(user.password);
-        User.create(user);
-        res
-          .setHeader('Location', '/')
-          .status(201)
-          .end();
+        user.emailAddress = user.emailAddress.toLowerCase();
+        User.create(user).then(() =>
+          res
+            .status(201)
+            .end()
+            .setHeader('Location', '/')
+        );
       } else {
         res.status(400).json({ message: 'User already exists' });
       }
