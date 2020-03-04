@@ -2,6 +2,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const morgan = require('morgan');
+const cors = require('cors');
 
 // Import routes
 const courses = require('./routes/courses');
@@ -10,8 +11,12 @@ const users = require('./routes/users');
 // Create Express app
 const app = express();
 
+// Enable all CORS Requests
+app.use(cors());
+
 // Setup morgan which gives us http request logging
 app.use(morgan('dev'));
+
 // Bodyparser middleware
 app.use(express.json());
 
