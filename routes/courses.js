@@ -70,7 +70,7 @@ router.get('/', (req, res) => {
  */
 router.get('/:id', (req, res) => {
   Course.findById(req.params.id)
-    .then(result => res.json(result))
+    .then(course => res.json(course))
     .catch(() => res.status(404).json({ message: 'Course Not Found!' }));
 });
 
@@ -79,9 +79,41 @@ router.get('/:id', (req, res) => {
  * @desc      Create A Course
  * @access    Private
  */
-router.post('/', (req, res) => {
-  Course.create(req.body).then(item => res.json(item));
-});
+router.post(
+  '/',
+  authenticateUser,
+  [
+    check('title')
+      .exists()
+      .withMessage('"title" is required')
+      .notEmpty()
+      .withMessage('Please enter a "title"'),
+    check('description')
+      .exists()
+      .withMessage('"description" is required')
+      .notEmpty()
+      .withMessage('Please enter a "description"'),
+  ],
+  asycnHandler(async (req, res) => {
+    const errors = validationResult(req);
+    // If there are validation errors...
+    if (!errors.isEmpty()) {
+      // Iterate through the errors and get the error messages.
+      const errorMessages = errors.array().map(error => error.msg);
+      res.status(400).json({ errors: errorMessages });
+    } else {
+      const course = await req.body;
+      // the 'userId' for the course comes from currently authenticated user
+      course.user = req.currentUser;
+      /*  const currentCourse = await Course.create(course);
+      res
+        .setHeader('Location', `/api/course/${currentCourse.id}`)
+        .status(201)
+        .json({ courseId: currentCourse.id }); */
+      Course.create(req.body).then(item => res.json(item));
+    }
+  })
+);
 
 /**
  * @listens   PUT api/courses/:id
