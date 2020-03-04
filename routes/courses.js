@@ -56,23 +56,30 @@ const authenticateUser = async (req, res, next) => {
  * @desc      Get All Courses
  * @access    Public
  */
-router.get('/', (req, res) => {
-  Course.find()
-    // Sorts by date in descending order
-    .sort({ date: -1 })
-    .then(courses => res.json(courses));
-});
+router.get(
+  '/',
+  asycnHandler(async (req, res) => {
+    Course.find()
+      // Sorts by date in descending order (most recent first)
+      .sort({ updatedAt: -1 })
+      .then(courses => res.json(courses))
+      .catch(err => console.log(err));
+  })
+);
 
 /**
  * @listens   GET api/courses/:id
  * @desc      Get An Individual Course
  * @access    Public
  */
-router.get('/:id', (req, res) => {
-  Course.findById(req.params.id)
-    .then(course => res.json(course))
-    .catch(() => res.status(404).json({ message: 'Course Not Found!' }));
-});
+router.get(
+  '/:id',
+  asycnHandler(async (req, res) => {
+    Course.findById(req.params.id)
+      .then(course => res.json(course))
+      .catch(() => res.status(404).json({ message: 'Course Not Found!' }));
+  })
+);
 
 /**
  * @listens   Post api/courses
@@ -105,12 +112,12 @@ router.post(
       const course = await req.body;
       // the 'userId' for the course comes from currently authenticated user
       course.user = req.currentUser;
-      /*  const currentCourse = await Course.create(course);
-      res
-        .setHeader('Location', `/api/course/${currentCourse.id}`)
-        .status(201)
-        .json({ courseId: currentCourse.id }); */
-      Course.create(req.body).then(item => res.json(item));
+      Course.create(req.body).then(course =>
+        res
+          .status(201)
+          .json({ courseId: course._id })
+          .setHeader('Location', `/api/course/${course._id}`)
+      );
     }
   })
 );
@@ -120,21 +127,75 @@ router.post(
  * @desc      Update A Course
  * @access    Private
  */
-router.put('/:id', (req, res) => {
-  Course.findByIdAndUpdate(req.params.id, req.body)
-    .then(course => res.json(course))
-    .catch(() => res.status(404).json({ message: 'Course Not Found!' }));
-});
+router.put(
+  '/:id',
+  authenticateUser,
+  [
+    check('title')
+      .exists()
+      .withMessage('"title" is required')
+      .notEmpty()
+      .withMessage('Please enter a "title"'),
+    check('description')
+      .exists()
+      .withMessage('"description" is required')
+      .notEmpty()
+      .withMessage('Please enter a "description"'),
+  ],
+  asycnHandler(async (req, res) => {
+    const errors = validationResult(req);
+    // If there are validation errors...
+    if (!errors.isEmpty()) {
+      // Iterate through the errors and get the error messages.
+      const errorMessages = errors.array().map(error => error.msg);
+      res.status(400).json({ errors: errorMessages });
+    } else {
+      Course.findById(req.params.id)
+        .then(course => {
+          // If the course owner Id matches the currently authenticated user Id...
+          if (course.user._id.equals(req.currentUser._id)) {
+            Course.findByIdAndUpdate(req.params.id, req.body).then(course =>
+              res
+                .status(204)
+                .end()
+                .setHeader('Location', `/api/course/${course._id}`)
+            );
+          } else {
+            res.status(403).json({
+              message: 'You can only update your own courses.',
+              currentUser: req.currentUser.emailAddress,
+            });
+          }
+        })
+        .catch(() => res.status(404).json({ message: 'Course Not Found!' }));
+    }
+  })
+);
 
 /**
  * @listens   DELETE api/courses/:id
  * @desc      Delete A Course
  * @access    Private
  */
-router.delete('/:id', (req, res) => {
-  Course.findByIdAndRemove(req.params.id)
-    .then(() => res.end())
-    .catch(() => res.status(404).json({ message: 'Course Not Found!' }));
-});
+router.delete(
+  '/:id',
+  authenticateUser,
+  asycnHandler(async (req, res) => {
+    // retrieve the course
+    Course.findById(req.params.id)
+      .then(course => {
+        // If the course owner Id matches the currently authenticated user Id...
+        if (course.user._id.equals(req.currentUser._id)) {
+          Course.findByIdAndRemove(req.params.id).then(course => res.status(204).end());
+        } else {
+          res.status(403).json({
+            message: 'You can only update your own courses.',
+            currentUser: req.currentUser.emailAddress,
+          });
+        }
+      })
+      .catch(() => res.status(404).json({ message: 'Course Not Found!' }));
+  })
+);
 
 module.exports = router;
